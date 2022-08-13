@@ -1,12 +1,9 @@
-from helper import *
+import xmltodict
+from collections import Counter
+import pandas as pd
 from pathlib import Path
+from tqdm import tqdm
 
-HERE = Path(__file__).parent.resolve()
-DATA = HERE.parent.joinpath("data")
-OUTPUT = HERE.parent.joinpath("output")
 
 file_name = "curriculo3.xml"
-
-df = extract_patent_years(file_name)
-
-print(df)
+# Use the module pathlib to get the path of the file

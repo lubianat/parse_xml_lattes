@@ -1,28 +1,49 @@
+from numpy import full
 from helper import *
 from pathlib import Path
 
 HERE = Path(__file__).parent.resolve()
-DATA = HERE.parent.joinpath("data")
-OUTPUT = HERE.parent.joinpath("output")
+LATTES = HERE.parent.joinpath("data").joinpath("Lattes")
 
 filenames = []
-for path in DATA.glob("*.xml"):
+for path in LATTES.glob("*.xml"):
     filenames.append(path.stem)
 
-render_publication_years_dataframe(OUTPUT, filenames)
-dfs = []
+full_names = []
+phd_conclusion_years = []
 for filename in filenames:
-    df = extract_patent_years(f"{filename}.xml")
-    dfs.append(df)
+    FILEPATH = (
+        HERE.parent.joinpath("data").joinpath("Lattes").joinpath(f"{filename}.xml")
+    )
 
-df = pd.concat(dfs, axis=0)
-df = df.drop_duplicates()
-df = df.fillna(0)
-df.columns = df.columns.astype(str)
-df = df.reindex(
-    sorted(df.columns),
-    axis=1,
+    file_in_xml = FILEPATH.read_text(encoding="latin-1")
+    # Parse an xml file by name into a Python object
+    file_dict = xmltodict.parse(file_in_xml)
+
+    full_name = file_dict["CURRICULO-VITAE"]["DADOS-GERAIS"]["@NOME-COMPLETO"]
+    print(full_name)
+    phd_data = file_dict["CURRICULO-VITAE"]["DADOS-GERAIS"][
+        "FORMACAO-ACADEMICA-TITULACAO"
+    ]["DOUTORADO"]
+    if isinstance(phd_data, dict):
+        phd_conclusion_year = phd_data["@ANO-DE-CONCLUSAO"]
+    else:
+        phd_years = []
+        for entry in phd_data:
+            phd_years.append(entry["@ANO-DE-CONCLUSAO"])
+        phd_conclusion_year = max(phd_years)
+
+    full_names.append(full_name)
+    phd_conclusion_years.append(phd_conclusion_year)
+
+df = pd.DataFrame({"name": full_names, "phd_conclusion_year": phd_conclusion_years})
+
+df.to_csv(OUTPUT.joinpath("phd_years.csv"), index=False)
+
+# render_table_for_category(
+#    category="patents", extractor=extract_patent_years, filenames=filenames
+# )
+
+render_table_for_category(
+    category="publications", extractor=extract_publication_dates, filenames=filenames
 )
-first_column = df.pop("name")
-df.insert(0, "name", first_column)
-df.to_csv(OUTPUT.joinpath("patent.csv"), index=False)

@@ -2,19 +2,22 @@ import xmltodict
 from collections import Counter
 import pandas as pd
 from pathlib import Path
-
+from tqdm import tqdm
 
 # Use the module pathlib to get the path of the file
 HERE = Path(__file__).parent.resolve()
+DATA = HERE.parent.joinpath("data")
+OUTPUT = HERE.parent.joinpath("output")
 
 
-def render_publication_years_dataframe(OUTPUT, filenames):
-    """
-    Given a list of names, render the publication dataframe.
-    """
+def render_table_for_category(
+    extractor,
+    filenames,
+    category,
+):
     dfs = []
-    for filename in filenames:
-        df = extract_publication_dates(f"{filename}.xml")
+    for filename in tqdm(filenames):
+        df = extractor(f"{filename}.xml")
         dfs.append(df)
 
     df = pd.concat(dfs, axis=0)
@@ -27,11 +30,11 @@ def render_publication_years_dataframe(OUTPUT, filenames):
     )
     first_column = df.pop("name")
     df.insert(0, "name", first_column)
-    df.to_csv(OUTPUT.joinpath("publications.csv"), index=False)
+    df.to_csv(OUTPUT.joinpath(f"{category}.csv"), index=False)
 
 
 def extract_patent_years(file_name):
-    FILEPATH = HERE.parent.joinpath("data").joinpath(file_name)
+    FILEPATH = HERE.parent.joinpath("data").joinpath("Lattes").joinpath(file_name)
 
     file_in_xml = FILEPATH.read_text(encoding="latin-1")
     # Parse an xml file by name into a Python object
@@ -39,8 +42,8 @@ def extract_patent_years(file_name):
 
     bibliography = file_dict["CURRICULO-VITAE"]["PRODUCAO-TECNICA"]
     full_name = file_dict["CURRICULO-VITAE"]["DADOS-GERAIS"]["@NOME-COMPLETO"]
-
-    if "PATENTE" not in bibliography:
+    tqdm.write(full_name)
+    if bibliography is None or "PATENTE" not in bibliography:
         print(full_name)
         years_dict = {}
         df = pd.DataFrame(years_dict, index=[0])
@@ -53,8 +56,12 @@ def extract_patent_years(file_name):
     # Go into the child elements one by one
     for i in patents:
         # Extract basic data into a python dict
-        article_info = i["DADOS-BASICOS-DA-PATENTE"]
-
+        if "DADOS-BASICOS-DA-PATENTE" not in i:
+            continue
+        try:
+            article_info = i["DADOS-BASICOS-DA-PATENTE"]
+        except:
+            continue
         # Get years into a list
         years.append(int(article_info["@ANO-DESENVOLVIMENTO"]))
 
@@ -69,7 +76,7 @@ def extract_publication_dates(file_name):
     Given a Lattes XML, returns a dataframe
     with the number of publications for each year.
     """
-    FILEPATH = HERE.parent.joinpath("data").joinpath(file_name)
+    FILEPATH = HERE.parent.joinpath("data").joinpath("Lattes").joinpath(file_name)
 
     file_in_xml = FILEPATH.read_text(encoding="latin-1")
     # Parse an xml file by name into a Python object
