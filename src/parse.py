@@ -1,30 +1,21 @@
-import untangle
+from helper import *
 from pathlib import Path
 
-# Use the module pathlib to get the path of the file
 HERE = Path(__file__).parent.resolve()
-filename = str(HERE.parent.joinpath("data").joinpath("curriculo.xml"))
+DATA = HERE.parent.joinpath("data")
+OUTPUT = HERE.parent.joinpath("output")
 
+filenames = []
+for path in DATA.glob("*.xml"):
+    filenames.append(path.stem)
 
-# Parse an xml file by name into a Python object
-file = untangle.parse(filename)
+dfs = []
+for filename in filenames:
+    df = extract_publication_dates(f"{filename}.xml")
+    dfs.append(df)
 
-bibliography = file.CURRICULO_VITAE.PRODUCAO_BIBLIOGRAFICA
-articles = bibliography.ARTIGOS_PUBLICADOS
+df = pd.concat(dfs, axis=0)
+df = df.drop_duplicates()
+df = df.fillna(0)
 
-years = []
-# Go into the child elements one by one
-for i in articles.children:
-
-    # Extract basic data into a python dict
-    article_info = i.DADOS_BASICOS_DO_ARTIGO._attributes
-
-    # Get years into a list
-    years.append(int(article_info["ANO-DO-ARTIGO"]))
-
-
-# Plot the histogram of publication years
-import matplotlib.pyplot as plt
-
-plt.hist(years)
-plt.show()
+df.to_csv(OUTPUT.joinpath("publications.csv"))
